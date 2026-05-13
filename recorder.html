@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎙️ Audio Recorder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 24px;
+      padding: 40px 32px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+      text-align: center;
+    }
+
+    .icon { font-size: 56px; margin-bottom: 12px; }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a202c;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #a0aec0;
+      margin-bottom: 32px;
+    }
+
+    /* ── Timer ── */
+    #timer {
+      font-size: 48px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #2d3748;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+      min-height: 56px;
+    }
+
+    /* ── Waveform ── */
+    #waveform {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      height: 48px;
+      margin-bottom: 32px;
+    }
+
+    .bar {
+      width: 4px;
+      background: #667eea;
+      border-radius: 4px;
+      height: 6px;
+      transition: height 0.1s;
+    }
+
+    .bar.active {
+      animation: wave 0.6s ease-in-out infinite;
+    }
+
+    .bar:nth-child(2)  { animation-delay: 0.1s; }
+    .bar:nth-child(3)  { animation-delay: 0.2s; }
+    .bar:nth-child(4)  { animation-delay: 0.3s; }
+    .bar:nth-child(5)  { animation-delay: 0.15s; }
+    .bar:nth-child(6)  { animation-delay: 0.25s; }
+    .bar:nth-child(7)  { animation-delay: 0.05s; }
+    .bar:nth-child(8)  { animation-delay: 0.35s; }
+    .bar:nth-child(9)  { animation-delay: 0.2s; }
+    .bar:nth-child(10) { animation-delay: 0.1s; }
+
+    @keyframes wave {
+      0%, 100% { height: 6px;  }
+      50%       { height: 36px; }
+    }
+
+    /* ── Buttons ── */
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 50px;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.12s, opacity 0.12s;
+      outline: none;
+    }
+
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+    .btn:not(:disabled):hover  { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+    .btn:not(:disabled):active { transform: translateY(0px);  box-shadow: none; }
+
+    .btn-record { background: linear-gradient(135deg, #f56565, #e53e3e); color: white; }
+    .btn-stop   { background: linear-gradient(135deg, #718096, #4a5568); color: white; }
+    .btn-download { background: linear-gradient(135deg, #48bb78, #38a169); color: white; }
+    .btn-reset  { background: #edf2f7; color: #4a5568; }
+
+    /* ── Audio player ── */
+    #playerWrap {
+      display: none;
+      margin-bottom: 20px;
+    }
+
+    audio {
+      width: 100%;
+      border-radius: 12px;
+      outline: none;
+    }
+
+    /* ── Status badge ── */
+    #statusBadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #718096;
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+      padding: 6px 14px;
+      border-radius: 50px;
+      min-height: 32px;
+    }
+
+    .dot-live {
+      width: 8px; height: 8px;
+      background: #f56565;
+      border-radius: 50%;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    /* ── Recordings list ── */
+    #recordingsList { margin-top: 24px; text-align: left; }
+
+    #recordingsList h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #a0aec0;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    .rec-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #2d3748;
+      gap: 8px;
+    }
+
+    .rec-name { flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rec-dur  { color: #a0aec0; white-space: nowrap; }
+
+    .rec-actions { display: flex; gap: 6px; }
+
+    .rec-btn {
+      background: none;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #4a5568;
+      transition: background 0.1s;
+    }
+
+    .rec-btn:hover { background: #edf2f7; }
+    .rec-btn.dl    { color: #38a169; border-color: #38a169; }
+    .rec-btn.del   { color: #e53e3e; border-color: #e53e3e; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">🎙️</div>
+  <h1>Audio Recorder</h1>
+  <p class="subtitle">Record, playback & download your audio</p>
+
+  <div id="timer">00:00</div>
+
+  <div id="waveform">
+    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    <div class="bar"></div>
+  </div>
+
+  <div class="btn-row">
+    <button id="btnRecord"   class="btn btn-record">⏺ Record</button>
+    <button id="btnStop"     class="btn btn-stop"   disabled>⏹ Stop</button>
+    <button id="btnDownload" class="btn btn-download" style="display:none">⬇ Download</button>
+    <button id="btnReset"    class="btn btn-reset"    style="display:none">🗑 Discard</button>
+  </div>
+
+  <div id="playerWrap">
+    <audio id="audioPlayer" controls></audio>
+  </div>
+
+  <div id="statusBadge">Ready to record</div>
+
+  <div id="recordingsList" style="display:none">
+    <h3>📁 Saved Recordings</h3>
+    <div id="recItems"></div>
+  </div>
+</div>
+
+<script>
+  var mediaRecorder = null;
+  var chunks        = [];
+  var timerInterval = null;
+  var seconds       = 0;
+  var recordings    = [];
+  var currentBlob   = null;
+
+  var btnRecord   = document.getElementById('btnRecord');
+  var btnStop     = document.getElementById('btnStop');
+  var btnDownload = document.getElementById('btnDownload');
+  var btnReset    = document.getElementById('btnReset');
+  var timerEl     = document.getElementById('timer');
+  var playerWrap  = document.getElementById('playerWrap');
+  var audioPlayer = document.getElementById('audioPlayer');
+  var statusBadge = document.getElementById('statusBadge');
+  var bars        = document.querySelectorAll('.bar');
+  var recListWrap = document.getElementById('recordingsList');
+  var recItems    = document.getElementById('recItems');
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function setStatus(html) { statusBadge.innerHTML = html; }
+
+  function startTimer() {
+    seconds = 0;
+    timerEl.textContent = '00:00';
+    timerInterval = setInterval(function () {
+      seconds++;
+      var m = Math.floor(seconds / 60);
+      var s = seconds % 60;
+      timerEl.textContent = pad(m) + ':' + pad(s);
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  function setWaveActive(active) {
+    bars.forEach(function (b) {
+      if (active) b.classList.add('active');
+      else        b.classList.remove('active');
+    });
+  }
+
+  function renderList() {
+    if (recordings.length === 0) { recListWrap.style.display = 'none'; return; }
+    recListWrap.style.display = 'block';
+    recItems.innerHTML = '';
+    recordings.forEach(function (rec, i) {
+      var div = document.createElement('div');
+      div.className = 'rec-item';
+      div.innerHTML =
+        '<span class="rec-name">🎵 ' + rec.name + '</span>' +
+        '<span class="rec-dur">' + rec.duration + '</span>' +
+        '<span class="rec-actions">' +
+          '<button class="rec-btn dl" onclick="playRec(' + i + ')">▶ Play</button>' +
+          '<button class="rec-btn dl" onclick="downloadRec(' + i + ')">⬇</button>' +
+          '<button class="rec-btn del" onclick="deleteRec(' + i + ')">✕</button>' +
+        '</span>';
+      recItems.appendChild(div);
+    });
+  }
+
+  // ── Recording actions ─────────────────────────────────────────────────────
+  window.playRec = function (i) {
+    var url = URL.createObjectURL(recordings[i].blob);
+    audioPlayer.src = url;
+    playerWrap.style.display = 'block';
+    audioPlayer.play();
+  };
+
+  window.downloadRec = function (i) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(recordings[i].blob);
+    a.download = recordings[i].name;
+    a.click();
+  };
+
+  window.deleteRec = function (i) {
+    recordings.splice(i, 1);
+    renderList();
+  };
+
+  // ── Main controls ─────────────────────────────────────────────────────────
+  btnRecord.addEventListener('click', function () {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(function (stream) {
+        currentBlob = null;
+        chunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = function (e) {
+          if (e.data.size > 0) chunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = function () {
+          currentBlob = new Blob(chunks, { type: 'audio/webm' });
+          var url = URL.createObjectURL(currentBlob);
+          audioPlayer.src = url;
+          playerWrap.style.display = 'block';
+          btnDownload.style.display = 'inline-flex';
+          btnReset.style.display    = 'inline-flex';
+          setStatus('✅ Done — ' + timerEl.textContent);
+
+          var name = 'Recording-' + (recordings.length + 1) + '.webm';
+          var duration = timerEl.textContent;
+          recordings.push({ blob: currentBlob, name: name, duration: duration });
+          renderList();
+        };
+
+        mediaRecorder.start();
+        startTimer();
+        setWaveActive(true);
+
+        btnRecord.disabled = true;
+        btnStop.disabled   = false;
+        btnDownload.style.display = 'none';
+        btnReset.style.display    = 'none';
+        playerWrap.style.display  = 'none';
+        setStatus('<span class="dot-live"></span> Recording...');
+      })
+      .catch(function (err) {
+        setStatus('❌ ' + err.message);
+      });
+  });
+
+  btnStop.addEventListener('click', function () {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(function (t) { t.stop(); });
+    }
+    stopTimer();
+    setWaveActive(false);
+    btnRecord.disabled = false;
+    btnStop.disabled   = true;
+  });
+
+  btnDownload.addEventListener('click', function () {
+    if (!currentBlob) return;
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(currentBlob);
+    a.download = 'Recording-' + Date.now() + '.webm';
+    a.click();
+  });
+
+  btnReset.addEventListener('click', function () {
+    currentBlob = null;
+    audioPlayer.src = '';
+    playerWrap.style.display  = 'none';
+    btnDownload.style.display = 'none';
+    btnReset.style.display    = 'none';
+    timerEl.textContent       = '00:00';
+    setStatus('Ready to record');
+  });
+</script>
+</body>
+</html>
